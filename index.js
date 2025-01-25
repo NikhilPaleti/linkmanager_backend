@@ -106,7 +106,7 @@ app.get('/links', async (req, res) => {
     }
 });
 
-// Endpoint to edit a specific link entry
+// Edit a specific link entry
 app.put('/link/:owner/:hash', async (req, res) => {
     const { owner, hash } = req.params;
     const updates = req.body;
@@ -121,7 +121,7 @@ app.put('/link/:owner/:hash', async (req, res) => {
     }
 });
 
-// Endpoint to fetch a specific link by hash
+// Fetch a specific link by hash
 app.get('/link/:owner/:hash', async (req, res) => {
     const { owner, hash } = req.params;
     try {
@@ -135,7 +135,21 @@ app.get('/link/:owner/:hash', async (req, res) => {
     }
 });
 
-// Fetch user info by username
+// Fetch a specific link by hash
+app.get('/link/:hash', async (req, res) => {
+    const { hash } = req.params;
+    try {
+        const link = await Link.findOne({ short_link: hash });
+        if (!link) {
+            return res.status(404).json({ error: 'Link not found' });
+        }
+        res.json(link);
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Fetch user info
 app.get('/fetchuser/:username', async (req, res) => {
     const { username } = req.params;
     try {
@@ -149,16 +163,38 @@ app.get('/fetchuser/:username', async (req, res) => {
     }
 });
 
-// Edit user info
+// Edit user 
 app.put('/edituser/:username', async (req, res) => {
     const { username } = req.params;
     const updates = req.body; 
     try {
+        // Check if new username or email already exists
+        if (updates.username || updates.email) {
+            const existingUser = await User.findOne({
+                $and: [
+                    { username: { $ne: username } }, // Exclude current user
+                    {
+                        $or: [
+                            { username: updates.username },
+                            { email: updates.email }
+                        ]
+                    }
+                ]
+            });
+
+            if (existingUser) {
+                return res.status(400).json({ 
+                    error: `Username/Email already exists` 
+                });
+            }
+        }
+
         const user = await User.findOneAndUpdate({ username }, updates, { new: true });
 
         if (!user) {
             return res.status(404).json({ error: `${username} not found` });
         }
+        
         if (updates.username && updates.username !== username) {
             await Link.updateMany({ owner: username }, { owner: updates.username });
         }
@@ -183,7 +219,7 @@ app.delete('/deleteuser/:username', async (req, res) => {
     }
 });
 
-// Endpoint to delete a specific link
+// Delete one specific link
 app.delete('/link/:owner/:hash', async (req, res) => {
     const { owner, hash } = req.params;
     try {
@@ -197,7 +233,7 @@ app.delete('/link/:owner/:hash', async (req, res) => {
     }
 });
 
-// Endpoint to add click data to a specific link
+// Add click data to one specific link
 app.post('/editclick/:short_link/', async (req, res) => {
     const { short_link } = req.params;
     const { clickData } = req.body; 
