@@ -28,7 +28,7 @@ app.listen(PORT, () => {
 }); 
 
 app.get('/', (req, res) => {
-    res.send('Hello from the MERN backend!');
+    res.send('Hello from the backend!');
 });
 
 app.post('/register', async (req, res) => {
